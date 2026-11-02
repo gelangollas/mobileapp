@@ -14,7 +14,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.uuid.Uuid
 
-class SideloadOrderTest {
+class LockerOrderTest {
     private lateinit var db: Database
     private lateinit var dao: LockerEntryRealDao
     private val limit = 100
@@ -35,13 +35,13 @@ class SideloadOrderTest {
     )
 
     @Test fun repeatedUpdatesPreserveFirstMiddleAndFaceOrder() = runBlocking {
-        val entries = listOf(entry("A", 0), entry("B", 1), entry("C", 2))
+        val entries = listOf(entry("A", 0), entry("B", 1), entry("C", 2)).map { it.copy(sideloaded = true) }
         val faces = listOf(entry("Face A", 0, "watchface"), entry("Face B", 1, "watchface"))
         dao.insertOrReplaceAndOrder(entries + faces, limit)
         repeat(3) {
-            dao.insertSideloadPreservingOrder(entries[0].copy(version = "2.0", orderIndex = 11), limit)
-            dao.insertSideloadPreservingOrder(entries[1].copy(version = "2.0", orderIndex = 11), limit)
-            dao.insertSideloadPreservingOrder(faces[1].copy(version = "2.0", orderIndex = -1), limit)
+            dao.insertOrReplaceAndOrder(entries[0].copy(version = "2.0", orderIndex = 11), limit)
+            dao.insertOrReplaceAndOrder(entries[1].copy(version = "2.0", orderIndex = 11), limit)
+            dao.insertOrReplaceAndOrder(faces[1].copy(version = "2.0", orderIndex = -1), limit)
         }
         assertEquals(entries.map { it.id }, dao.getAppOrderFlow("watchapp", limit).first())
         assertEquals(faces.map { it.id }, dao.getAppOrderFlow("watchface", limit).first())
@@ -53,11 +53,11 @@ class SideloadOrderTest {
         val b = entry("B", 1)
         dao.insertOrReplaceAndOrder(listOf(a, b), limit)
         val added = entry("C", 11)
-        dao.insertSideloadPreservingOrder(added, limit)
+        dao.insertOrReplaceAndOrder(added, limit)
         assertEquals(listOf(a.id, b.id, added.id), dao.getAppOrderFlow("watchapp", limit).first())
         dao.markForDeletion(a.id)
         dao.updateOrder("watchapp")
-        dao.insertSideloadPreservingOrder(a.copy(orderIndex = 11), limit)
+        dao.insertOrReplaceAndOrder(a.copy(orderIndex = 11), limit)
         assertEquals(listOf(b.id, added.id, a.id), dao.getAppOrderFlow("watchapp", limit).first())
     }
 
@@ -65,8 +65,27 @@ class SideloadOrderTest {
         val app = entry("App", 0)
         val face = entry("Face", 0, "watchface")
         dao.insertOrReplaceAndOrder(listOf(app, face), limit)
-        dao.insertSideloadPreservingOrder(app.copy(type = "watchface", orderIndex = 11), limit)
+        dao.insertOrReplaceAndOrder(app.copy(type = "watchface", orderIndex = 11), limit)
         assertEquals(listOf(face.id, app.id), dao.getAppOrderFlow("watchface", limit).first())
+    }
+
+    @Test fun singleStoreReplacementPreservesItsPosition() = runBlocking {
+        val first = entry("First", 0)
+        val second = entry("Second", 1)
+        dao.insertOrReplaceAndOrder(listOf(first, second), limit)
+        dao.insertOrReplaceAndOrder(first.copy(version = "2.0", orderIndex = 11), limit)
+        assertEquals(listOf(first.id, second.id), dao.getAppOrderFlow("watchapp", limit).first())
+        assertEquals("2.0", dao.getEntry(first.id)?.version)
+    }
+
+    @Test fun batchCanStillRestoreSystemAppPositions() = runBlocking {
+        val first = entry("First", 0).copy(systemApp = true)
+        val second = entry("Second", 1).copy(systemApp = true)
+        dao.insertOrReplaceAndOrder(listOf(first, second), limit)
+        dao.setOrder(second.id, -1, limit)
+        assertEquals(listOf(second.id, first.id), dao.getAppOrderFlow("watchapp", limit).first())
+        dao.insertOrReplaceAndOrder(listOf(first, second), limit)
+        assertEquals(listOf(first.id, second.id), dao.getAppOrderFlow("watchapp", limit).first())
     }
 
     @Test fun prefixMovesSelectedAppsAndKeepsOtherEntriesInOrder() = runBlocking {
@@ -97,5 +116,4 @@ class SideloadOrderTest {
             assertEquals(listOf(face.id), dao.getAppOrderFlow("watchface", limit).first())
         }
     }
-
 }

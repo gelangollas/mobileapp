@@ -456,7 +456,7 @@ class Locker(
         } else {
             null
         }
-        lockerEntryDao.insertSideloadPreservingOrder(lockerEntry, config.value.lockerSyncLimitV2)
+        lockerEntryDao.insertOrReplaceAndOrder(lockerEntry, config.value.lockerSyncLimitV2)
         // After the insert: requests are only shown for installed apps.
         permissions.recordRequested(lockerEntry.id, pbwApp.requestedPermissions())
         permissions.setDecisions(lockerEntry.id, granted)
