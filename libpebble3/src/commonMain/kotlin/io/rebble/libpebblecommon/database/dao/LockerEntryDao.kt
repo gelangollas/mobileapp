@@ -110,6 +110,21 @@ interface LockerEntryRealDao : LockerEntryDao {
         updateSync(syncLimit)
     }
 
+    // A sideload update must keep a live entry's position, even if another
+    // coroutine reorders the locker while the PBW is being read.
+    @Transaction
+    suspend fun insertSideloadPreservingOrder(entry: LockerEntry, syncLimit: Int) {
+        val existing = getEntry(entry.id)
+        val updated = if (existing != null && existing.type == entry.type) {
+            entry.copy(orderIndex = existing.orderIndex)
+        } else {
+            entry
+        }
+        insertOrReplace(updated)
+        updateOrder(updated.type)
+        updateSync(syncLimit)
+    }
+
     @Transaction
     suspend fun insertOrReplaceAndOrder(entries: List<LockerEntry>, syncLimit: Int) {
         insertOrReplace(entries)
