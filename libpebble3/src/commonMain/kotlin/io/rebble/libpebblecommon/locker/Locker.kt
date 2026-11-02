@@ -237,6 +237,11 @@ class Locker(
         }.await()
     }
 
+    override suspend fun setWatchappPrefix(ids: List<Uuid>): List<Uuid>? =
+        libPebbleCoroutineScope.async {
+            lockerEntryDao.setWatchappPrefix(ids, config.value.lockerSyncLimitV2)
+        }.await()
+
     override suspend fun waitUntilAppSyncedToWatch(id: Uuid, identifier: PebbleIdentifier, timeout: Duration): Boolean {
         logger.v { "waitUntilAppSyncedToWatch $id" }
         try {

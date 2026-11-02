@@ -135,6 +135,16 @@ interface LockerEntryRealDao : LockerEntryDao {
     }
 
     @Transaction
+    suspend fun setWatchappPrefix(ids: List<Uuid>, syncLimit: Int): List<Uuid>? {
+        if (ids.isEmpty() || ids.size != ids.toSet().size) return null
+        val entries = ids.mapNotNull { getEntry(it) }
+        if (entries.isEmpty() || entries.any { it.type != AppType.Watchapp.code }) return null
+        val installed = entries.map { it.id }
+        installed.asReversed().forEach { setOrder(it, -1, syncLimit) }
+        return installed
+    }
+
+    @Transaction
     suspend fun setOrder(id: Uuid, orderIndex: Int, syncLimit: Int) {
         val entry = getEntry(id) ?: return
         val oldOrder = entry.orderIndex

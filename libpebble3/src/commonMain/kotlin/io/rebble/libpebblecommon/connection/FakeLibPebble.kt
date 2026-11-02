@@ -224,6 +224,8 @@ class FakeLibPebble : LibPebble {
 
     }
 
+    override suspend fun setWatchappPrefix(ids: List<Uuid>): List<Uuid>? = ids
+
     override suspend fun waitUntilAppSyncedToWatch(
         id: Uuid,
         identifier: PebbleIdentifier,

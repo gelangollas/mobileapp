@@ -68,4 +68,34 @@ class SideloadOrderTest {
         dao.insertSideloadPreservingOrder(app.copy(type = "watchface", orderIndex = 11), limit)
         assertEquals(listOf(face.id, app.id), dao.getAppOrderFlow("watchface", limit).first())
     }
+
+    @Test fun prefixMovesSelectedAppsAndKeepsOtherEntriesInOrder() = runBlocking {
+        val entries = listOf(entry("A", 0), entry("B", 1), entry("C", 2), entry("D", 3))
+        dao.insertOrReplaceAndOrder(entries, limit)
+        assertEquals(listOf(entries[2].id, entries[0].id),
+            dao.setWatchappPrefix(listOf(entries[2].id, entries[0].id), limit))
+        assertEquals(listOf(entries[2].id, entries[0].id, entries[1].id, entries[3].id),
+            dao.getAppOrderFlow("watchapp", limit).first())
+    }
+
+    @Test fun prefixSkipsAppsNotInstalledYet() = runBlocking {
+        val entries = listOf(entry("A", 0), entry("B", 1))
+        dao.insertOrReplaceAndOrder(entries, limit)
+        val prefix = dao.setWatchappPrefix(listOf(Uuid.random(), entries[1].id), limit)
+        assertEquals(listOf(entries[1].id), prefix)
+        assertEquals(listOf(entries[1].id, entries[0].id), dao.getAppOrderFlow("watchapp", limit).first())
+    }
+
+    @Test fun invalidPrefixDoesNotChangeAnyOrder() = runBlocking {
+        val entries = listOf(entry("A", 0), entry("B", 1))
+        val face = entry("Face", 0, "watchface")
+        dao.insertOrReplaceAndOrder(entries + face, limit)
+        for (ids in listOf(emptyList(), listOf(Uuid.random()),
+                listOf(entries[0].id, face.id), listOf(entries[0].id, entries[0].id))) {
+            assertEquals(null, dao.setWatchappPrefix(ids, limit))
+            assertEquals(entries.map { it.id }, dao.getAppOrderFlow("watchapp", limit).first())
+            assertEquals(listOf(face.id), dao.getAppOrderFlow("watchface", limit).first())
+        }
+    }
+
 }

@@ -434,6 +434,7 @@ interface LockerApi {
     /** A text file from an installed app's pbw, or null if the app or file is missing. */
     suspend fun getAppFile(uuid: Uuid, name: String): String?
     suspend fun setAppOrder(id: Uuid, order: Int)
+    suspend fun setWatchappPrefix(ids: List<Uuid>): List<Uuid>?
     suspend fun waitUntilAppSyncedToWatch(id: Uuid, identifier: PebbleIdentifier, timeout: Duration): Boolean
     suspend fun removeApp(id: Uuid): Boolean
     suspend fun addAppToLocker(app: LockerEntry, granted: Map<String, Boolean?> = emptyMap())
